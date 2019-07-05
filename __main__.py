@@ -17,12 +17,13 @@ CV_DIGITS = [cv2.threshold(cv2.imread(x, cv2.IMREAD_GRAYSCALE), 20, 0, cv2.THRES
 TEST_VALS = "30256512"
 
 def main():
-    """ Main body for starting up and terminating Tweetfeeder bot """
+    """ Main body """
     # pylint: disable=no-member
     if switch_to_sst_input():
-        sst_input_loop()
+        sst_calibrate()
+        #sst_input_loop()
         pyautogui.moveTo(x=1280, y=720, duration=1)
-    cv2.destroyAllWindows()
+
 
 def switch_to_sst_input():
     try:
@@ -34,9 +35,21 @@ def switch_to_sst_input():
         pyautogui.alert(text="Please open SST and start a new file", title="Error", button='OK')
     return False
 
+def sst_calibrate():
+    size = pyautogui.size()
+    pyautogui.leftClick(x=50, y=size[1]-125, interval=0.3)
+    # Record current time
+    tc_start = sst_read_tc()
+    print(tc_start)
+    pyautogui.dragRel(xOffset=40, duration=1, pause=1, tween=pyautogui.easeInCirc)
+    tc_finish = sst_read_tc()
+    print(tc_finish)
+    if (tc_finish < tc_start):
+        tc_finish = tc_finish + 30
+    print(str(tc_finish[3] - tc_start[3]))
+
 
 def sst_input_loop():
-
     size = pyautogui.size()
     pyautogui.leftClick(x=50, y=size[1]-125, interval=0.3)
     # Record current time
