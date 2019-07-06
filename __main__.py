@@ -5,23 +5,26 @@ import pyautogui
 import pygetwindow
 import numpy as np
 from mss import mss
+import srt
 
 NUMS = ["img/{}.png".format(i) for i in range(10)]
 SCREEN = mss()
 DIGIT_REGIONS = []
-for i in range(0, 8):
-    offset = 8 * (i + int(i/2))
-    DIGIT_REGIONS.append({"top": 834, "left": 234-offset, "width": 7, "height": 11})
+AUDIO_ORIGIN = []
 CV_DIGITS = [cv2.threshold(cv2.imread(x, cv2.IMREAD_GRAYSCALE), 20, 0, cv2.THRESH_TOZERO)[1] for x in NUMS]
 # CV_DIGIT_HISTOGRAMS = [cv2.calcHist([digit], [0], None, [24], [0, 256]) for digit in CV_DIGITS]
 TEST_VALS = "30256512"
+TEST_SRT = "test.srt"
 
 def main():
     """ Main body """
     # pylint: disable=no-member
     if switch_to_sst_input():
         sst_calibrate()
-        #sst_input_loop()
+        srt_content = ""
+        with open(TEST_SRT, encoding="utf8") as infile:
+            srt_content = infile.read()
+        #sst_input_loop(srt_content)
         pyautogui.moveTo(x=1280, y=720, duration=1)
 
 
@@ -37,11 +40,23 @@ def switch_to_sst_input():
 
 def sst_calibrate():
     size = pyautogui.size()
-    pyautogui.leftClick(x=50, y=size[1]-125, interval=0.3)
+    # Find place TC meter (00:00:00:00)
+    digit_found_regions = []
+    for i, num in enumerate(NUMS):
+        for region in pyautogui.locateAllOnScreen(num):
+            digit_found_regions.append(region)
+    digit_found_regions.sort(key=lambda r: r.left - r.top)
+    tc_start_region = digit_found_regions[0]
+    for i in range(0, 8):
+        offset = 8 * (i + int(i/2))
+        DIGIT_REGIONS.append({"top": tc_start_region.top, "left": tc_start_region.left+offset, "width": 7, "height": 11})
+    AUDIO_ORIGIN = {"top": DIGIT_REGIONS[0]["top"]+98, "left": DIGIT_REGIONS[0]["left"]-124}
+    DIGIT_REGIONS.reverse()
     # Record current time
     tc_start = sst_read_tc()
     print(tc_start)
-    pyautogui.dragRel(xOffset=40, duration=1, pause=1, tween=pyautogui.easeInCirc)
+    pyautogui.moveTo(x=AUDIO_ORIGIN["left"], y=AUDIO_ORIGIN["top"])
+    pyautogui.drag(xOffset=300, duration=2, pause=1, tween=pyautogui.easeOutCirc)
     tc_finish = sst_read_tc()
     print(tc_finish)
     if (tc_finish < tc_start):
@@ -100,7 +115,7 @@ def num_at_region(reg_index):
         cv_digit_nb = cv2.countNonZero(cv_digit)
         if overlaid_nb == ss_digit_nb == cv_digit_nb:
             return i
-    raise Exception("Could not find any digit")
+    raise Exception("Could not find any digit (searched {})".format(monitor))
 
 if __name__ == "__main__":
     main()
